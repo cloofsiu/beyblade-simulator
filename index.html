@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Beyblade Simulator by Cloof Siu</title>
+<title>旋螺模擬器 Beyblade Simulator by Cloof Siu</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#000;font-family:'Segoe UI',Tahoma,sans-serif;color:#fff;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+body{overflow:hidden;background:#000;font-family:'Segoe UI','PingFang SC','Microsoft JhengHei',Tahoma,sans-serif;color:#fff;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 canvas{display:block;touch-action:none}
 #overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a0a2e,#000);z-index:100;transition:opacity 0.6s;padding:20px}
 #overlay.gone{opacity:0;pointer-events:none}
@@ -16,9 +16,10 @@ canvas{display:block;touch-action:none}
 #go{padding:14px 44px;font-size:clamp(0.9rem,3vw,1.1rem);background:linear-gradient(135deg,#00e5ff,#7c4dff);border:none;border-radius:28px;color:#fff;cursor:pointer;box-shadow:0 0 18px rgba(0,229,255,0.4);-webkit-tap-highlight-color:transparent}
 #go:hover{transform:scale(1.05)}
 #go:active{transform:scale(0.97)}
+#dragHint{position:absolute;top:38%;left:50%;transform:translateX(-50%);color:#00e5ff;font-size:clamp(0.7rem,2.5vw,0.9rem);opacity:0;transition:opacity 0.5s;pointer-events:none;z-index:15;text-align:center;text-shadow:0 0 8px rgba(0,229,255,0.5)}
 #hud{position:absolute;top:8px;left:8px;pointer-events:none;z-index:10}
 #hud .r{background:rgba(0,0,0,0.6);border:1px solid rgba(0,229,255,0.25);border-radius:6px;padding:4px 8px;margin-bottom:3px;font-size:0.7rem;min-width:0}
-#hud .r .l{color:#00e5ff;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold}
+#hud .r .l{color:#00e5ff;font-size:0.55rem;letter-spacing:0.5px;font-weight:bold}
 #hud .r .v{font-size:0.85rem;font-variant-numeric:tabular-nums}
 #badge{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);padding:8px 20px;border-radius:18px;font-weight:bold;font-size:clamp(0.7rem,2.5vw,1rem);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:15;white-space:nowrap}
 #credit{position:absolute;bottom:8px;right:8px;font-size:0.6rem;color:#00e5ff;z-index:10;opacity:0.7;max-width:50%;text-align:right}
@@ -31,25 +32,27 @@ canvas{display:block;touch-action:none}
   #hud .r .v{font-size:0.7rem}
   #panel{top:auto;bottom:0;right:0;left:0;width:100%;max-height:45vh;border-radius:10px 10px 0 0;font-size:10px;padding:8px}
   #credit{bottom:auto;top:4px;right:auto;left:4px;font-size:0.5rem;max-width:40%}
+  #dragHint{top:32%}
 }
 </style>
 </head>
 <body>
 <div id="overlay">
-  <h1>Beyblade Spinning Top Simulator</h1>
-  <h2>Interactive Physics for STEM Education</h2>
+  <h1>旋螺模擬器 Beyblade Simulator</h1>
+  <h2>互動物理 STEM 教育 Interactive Physics for STEM Education</h2>
   <div class="credit" style="color:#00e5ff;font-size:1rem;margin-bottom:30px">Created by Cloof Siu</div>
-  <button id="go">LAUNCH SIMULATOR</button>
+  <button id="go">啟動模擬器 LAUNCH SIMULATOR</button>
 </div>
+<div id="dragHint">向後拉陀螺以發射 Drag back on the top to launch</div>
 <div id="hud">
-  <div class="r"><div class="l">Spin Speed</div><div class="v" id="v-rpm">--</div></div>
-  <div class="r"><div class="l">Tilt</div><div class="v" id="v-tilt">0.0°</div></div>
-  <div class="r"><div class="l">Angular Momentum</div><div class="v" id="v-L">--</div></div>
-  <div class="r"><div class="l">Time Left</div><div class="v" id="v-time">--</div></div>
-  <div class="r"><div class="l">Elapsed</div><div class="v" id="v-elapsed">0.0 s</div></div>
+  <div class="r"><div class="l">旋轉速度 Spin Speed</div><div class="v" id="v-rpm">--</div></div>
+  <div class="r"><div class="l">傾斜 Tilt</div><div class="v" id="v-tilt">0.0°</div></div>
+  <div class="r"><div class="l">角動量 Angular Momentum</div><div class="v" id="v-L">--</div></div>
+  <div class="r"><div class="l">剩餘時間 Time Left</div><div class="v" id="v-time">--</div></div>
+  <div class="r"><div class="l">已用時間 Elapsed</div><div class="v" id="v-elapsed">0.0 s</div></div>
 </div>
 <div id="badge"></div>
-<div id="credit">Beyblade Simulator by Cloof Siu | Model: slumber studio (CC-BY-4.0)</div>
+<div id="credit">旋螺模擬器 Beyblade Simulator by Cloof Siu | Model: slumber studio (CC-BY-4.0)</div>
 
 <script type="importmap">
 {
@@ -65,34 +68,29 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// ====== CONSTANTS ======
 const G = 9.82, ARENA_R = 1.0, EPS = 1e-6;
 
-// ====== GLOBALS ======
 let scene, cam, ren, ctrl, clk;
 let paused = false, speed = 1.0, elapsed = 0, started = false;
-let mesh, glow, trail, sparks = [], airMesh;
-let arrG, arrT, arrA; // force arrows
+let mesh, hitHelper, glow, trail, sparks = [], airMesh;
+let arrG, arrT, arrA;
 let log = [], logT = 0;
 
-// ====== TOP STATE ======
 const T = {
-  phi: 0, theta: 0.02, psi: 0, // euler angles
-  omega: 0,                     // spin rate rad/s
+  phi: 0, theta: 0.02, psi: 0,
+  omega: 0,
   rpm: 0,
-  px: 0, pz: 0,                 // position on arena
-  vx: 0, vz: 0,                 // linear velocity
+  px: 0, pz: 0,
+  vx: 0, vz: 0,
   spinning: false, dead: false,
   time: 0, spinTime: 0,
-  // physics params
   mass: 0.05,
-  I1: 0.000225,  // moment about spin axis
-  cmH: 0.02,      // center of mass height
-  tilt0: 0.02,    // initial tilt
+  I1: 0.000225,
+  cmH: 0.02,
+  tilt0: 0.02,
   trail: []
 };
 
-// ====== USER PARAMS ======
 const P = {
   rpm: 2500,
   tilt: 5,
@@ -105,7 +103,6 @@ const P = {
 };
 
 function setDist(type) {
-  // Larger cmH = more precession drift = more visible movement
   if (type === 'Tip-heavy') { T.I1 = 0.00012; T.cmH = 0.05; }
   else if (type === 'Rim-heavy') { T.I1 = 0.00035; T.cmH = 0.03; }
   else { T.I1 = 0.000225; T.cmH = 0.04; }
@@ -116,7 +113,7 @@ function estTime() {
   return T.omega > 3 ? Math.log(T.omega / 3) / rate : 0;
 }
 
-function launch(rpm, tiltDeg) {
+function launch(rpm, tiltDeg, keepPos) {
   setDist(P.dist);
   T.omega = rpm * 2 * Math.PI / 60;
   T.rpm = rpm;
@@ -128,9 +125,11 @@ function launch(rpm, tiltDeg) {
   T.dead = false;
   T.time = 0;
   T.spinTime = 0;
-  T.px = (Math.random() - 0.5) * 0.04;
-  T.pz = (Math.random() - 0.5) * 0.04;
-  T.vx = 0; T.vz = 0; // set by caller (button or drag)
+  if (!keepPos) {
+    T.px = (Math.random() - 0.5) * 0.04;
+    T.pz = (Math.random() - 0.5) * 0.04;
+  }
+  T.vx = 0; T.vz = 0;
   T.trail = [];
   T.launchTime = T.time;
 }
@@ -144,32 +143,25 @@ function physics(dt) {
   const M = m * G * cmH;
   const oCrit = Math.sqrt(M / I1);
 
-  // Spin decay: realistic 30-60 seconds depending on settings
-  const baseR = 0.02;              // bearing friction baseline
-  const muR = P.mu * 1.5;          // surface friction (slider)
-  const airR = P.air ? 0.015 : 0; // simple linear extra drag when air resistance is on
+  const baseR = 0.02;
+  const muR = P.mu * 1.5;
+  const airR = P.air ? 0.015 : 0;
   const tiltPen = T.theta > 0.35 ? (T.theta - 0.35) * 2.0 : 0;
   const totalRate = baseR + muR + airR + tiltPen;
   T.omega *= Math.exp(-totalRate * dt);
-  // Extra fast decay when nearly fallen over
   if (T.theta > 1.0) T.omega *= Math.exp(-2.0 * dt);
   if (T.theta > 1.3) T.omega *= Math.exp(-6.0 * dt);
   if (T.omega < 3) { T.omega = 0; T.rpm = 0; T.spinning = false; T.dead = true; return; }
   T.rpm = T.omega * 60 / (2 * Math.PI);
 
-  // ─── Precession ───
-  // ω_p = M / (I₁ · ω)  — precession gets FASTER as top slows
   const phiDot = M / (I1 * T.omega);
   T.phi += phiDot * dt;
 
-  // ─── Tilt dynamics ───
-  // stability ratio: 1 when fast (stable upright), 0 when near critical speed
   const stab = Math.max(0, Math.min(1, (T.omega - oCrit * 0.3) / (oCrit * 2)));
-  const natural = T.tilt0 + 0.01 * T.spinTime;    // slight natural drift upward
-  const fall = Math.PI * 0.45;                     // near-horizontal (top fallen)
+  const natural = T.tilt0 + 0.01 * T.spinTime;
+  const fall = Math.PI * 0.45;
   const target = natural + (fall - natural) * Math.pow(1 - stab, 2.5);
   T.theta += (target - T.theta) * Math.min(1, 2.5 * dt);
-  // Nutation wobble (gets worse as top slows)
   if (stab < 0.95) {
     const nutAmp = (1 - stab) * 0.04;
     const nutFreq = Math.min(20, T.omega * 0.08);
@@ -177,23 +169,17 @@ function physics(dt) {
   }
   T.theta = Math.max(0.005, Math.min(Math.PI * 0.46, T.theta));
 
-  // Visual spin (capped to prevent aliasing)
   T.psi += Math.min(T.omega, 35) * dt;
 
-// ─── Linear motion from precession ───
-  // Real tops orbit because the precessing axis shifts the contact point.
-  // Drift speed = phiDot × cmH × sin(θ) — multiplied for arena-scale visibility
   if (T.theta > 0.01) {
     const driftSpeed = phiDot * cmH * Math.sin(T.theta) * 15.0;
     T.vx += -Math.sin(T.phi) * driftSpeed * dt;
     T.vz += Math.cos(T.phi) * driftSpeed * dt;
   }
-  // Very light linear damping — smooth floor
   const ld = P.air ? 0.995 : 0.998;
   T.vx *= Math.pow(ld, dt * 60);
   T.vz *= Math.pow(ld, dt * 60);
 
-  // Wall collision
   const d = Math.sqrt(T.px * T.px + T.pz * T.pz);
   const wR = ARENA_R - 0.1;
   if (d > wR) {
@@ -212,27 +198,22 @@ function physics(dt) {
   T.px += T.vx * dt;
   T.pz += T.vz * dt;
 
-  // Trail
   T.trail.push(new THREE.Vector3(T.px, 0.003, T.pz));
   if (T.trail.length > 500) T.trail.shift();
 }
 
 function syncMesh() {
   if (!mesh) return;
-  // Rotation: precession around Y, then tilt, then spin around symmetry axis
   const qP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), T.phi);
   const tA = new THREE.Vector3(Math.cos(T.phi),0,-Math.sin(T.phi)).normalize();
   const qT = new THREE.Quaternion().setFromAxisAngle(tA, T.theta);
   const sA = new THREE.Vector3(0,1,0).applyQuaternion(qP.clone().multiply(qT)).normalize();
   const qS = new THREE.Quaternion().setFromAxisAngle(sA, T.psi);
   mesh.quaternion.copy(qP).multiply(qT).multiply(qS);
-  // Position: mesh origin at center; bottom tip is at local y = -0.086
-  // When upright, center at y = 0.086 (tip on ground)
-  // When tilted by theta, center rises by 0.086 * cos(theta)
   mesh.position.set(T.px, 0.086 * Math.cos(T.theta), T.pz);
+  if (hitHelper) hitHelper.position.set(T.px, 0.05, T.pz);
 }
 
-// ====== SPARKS ======
 function spawnSparks(pos, n) {
   for (let i = 0; i < n; i++) {
     const m = new THREE.Mesh(
@@ -255,7 +236,6 @@ function updSparks(dt) {
   }
 }
 
-// ====== INIT ======
 function init() {
   clk = new THREE.Clock();
   scene = new THREE.Scene();
@@ -286,6 +266,12 @@ function init() {
 
   buildArena();
   mesh = buildTop(0x00e5ff);
+  hitHelper = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.15, 0.3, 8),
+    new THREE.MeshBasicMaterial({visible: false})
+  );
+  hitHelper.position.set(0, 0.05, 0);
+  scene.add(hitHelper);
   buildGlow();
   buildTrail();
   buildArrows();
@@ -377,42 +363,6 @@ function updArrows() {
   arrA.position.copy(p); arrA.setDirection(sa); arrA.setLength(Math.min(0.18,T.omega*0.0003+0.03),0.02,0.01);
 }
 
-function buildAirflow() {
-  const N=200, g=new THREE.BufferGeometry();
-  const p=new Float32Array(N*3), v=new Float32Array(N*3), a=new Float32Array(N);
-  for(let i=0;i<N;i++) rstAir(i,p,v,a);
-  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  airMesh=new THREE.Points(g,new THREE.PointsMaterial({color:0x44ddff,size:0.012,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false}));
-  airMesh.visible=false; airMesh.userData={v,a,N}; scene.add(airMesh);
-}
-
-function rstAir(i,p,v,a){
-  const ang=Math.random()*Math.PI*2, r=0.03+Math.random()*0.1;
-  p[i*3]=T.px+Math.cos(ang)*r; p[i*3+1]=0.01+Math.random()*0.04; p[i*3+2]=T.pz+Math.sin(ang)*r;
-  const sp=0.15+Math.random()*0.2;
-  v[i*3]=-Math.sin(ang)*sp+(Math.random()-0.5)*0.02;
-  v[i*3+1]=(Math.random()-0.5)*0.01;
-  v[i*3+2]=Math.cos(ang)*sp+(Math.random()-0.5)*0.02;
-  a[i]=Math.random();
-}
-
-function updAir(dt){
-  if(!P.airflow||!T.spinning){airMesh.visible=false;return;}
-  airMesh.visible=true;
-  const pos=airMesh.geometry.attributes.position.array;
-  const{v,a,N}=airMesh.userData;
-  const sp=Math.min(T.omega/50,5);
-  for(let i=0;i<N;i++){
-    a[i]+=dt*1.2;
-    if(a[i]>1){rstAir(i,pos,v,a);continue;}
-    pos[i*3]+=v[i*3]*dt*sp; pos[i*3+1]+=v[i*3+1]*dt; pos[i*3+2]+=v[i*3+2]*dt*sp;
-    const dx=pos[i*3]-T.px,dz=pos[i*3+2]-T.pz;
-    if(dx*dx+dz*dz>0.5)rstAir(i,pos,v,a);
-  }
-  airMesh.geometry.attributes.position.needsUpdate=true;
-  airMesh.material.opacity=Math.min(0.7,sp*0.3);
-}
-
 function loadModel() {
   new GLTFLoader().load('./beyblade.glb',
     (gltf)=>{
@@ -434,58 +384,13 @@ function loadModel() {
   );
 }
 
-// ====== DRAG ======
+// ====== DRAG (Slingshot) ======
 let dragS=null;
 let dragLine=null;
-function setupDrag(){
-  const cv=ren.domElement;
-  cv.addEventListener('pointerdown',(e)=>{
-    if(!started)return;
-    const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
-    const rc=new THREE.Raycaster(); rc.setFromCamera(m,cam);
-    if(rc.intersectObjects([mesh],true).length>0){dragS={x:e.clientX,y:e.clientY};ctrl.enabled=false;}
-  });
-  cv.addEventListener('pointermove',(e)=>{
-    if(!dragS)return;
-    if(!dragLine){
-      const geo=new THREE.BufferGeometry();
-      geo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,0,0,0],3));
-      dragLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xffff00,linewidth:3,transparent:true,opacity:0.8}));
-      scene.add(dragLine);
-    }
-    // Get world-space drag direction by projecting screen delta through camera
-    const worldDir=screenDirToWorld(dragS.x,dragS.y,e.clientX,e.clientY);
-    const start3D=new THREE.Vector3(T.px,0.05,T.pz);
-    const dragDist=Math.sqrt((e.clientX-dragS.x)**2+(e.clientY-dragS.y)**2);
-    const end3D=start3D.clone().add(worldDir.multiplyScalar(dragDist*0.003));
-    const pos=dragLine.geometry.attributes.position.array;
-    pos[0]=start3D.x;pos[1]=start3D.y;pos[2]=start3D.z;
-    pos[3]=end3D.x;pos[4]=end3D.y;pos[5]=end3D.z;
-    dragLine.geometry.attributes.position.needsUpdate=true;
-  });
-  cv.addEventListener('pointerup',(e)=>{
-    if(!dragS)return;
-    const dx=e.clientX-dragS.x, dy=e.clientY-dragS.y, dist=Math.sqrt(dx*dx+dy*dy);
-    ctrl.enabled=true;
-    if(dragLine){scene.remove(dragLine);dragLine.geometry.dispose();dragLine.material.dispose();dragLine=null;}
-    dragS=null;
-    if(dist>10){
-      const rpm=Math.min(5000, dist*30+500);
-      const speed=Math.min(0.8, dist*0.006);
-      // Project screen drag into world XZ plane using camera
-      const worldDir=screenDirToWorld(e.clientX-dx,e.clientY-dy,e.clientX,e.clientY);
-      launch(rpm, P.tilt);
-      T.vx=worldDir.x*speed;
-      T.vz=worldDir.z*speed;
-      spawnSparks(new THREE.Vector3(T.px,0.05,T.pz),25);
-    }
-  });
-}
+let dragArrow=null;
+let hintShown=false;
 
-// Convert a screen-space drag direction into a world-space direction on the XZ ground plane
 function screenDirToWorld(sx1,sy1,sx2,sy2){
-  // Use raycasting: cast rays at start and end screen positions,
-  // intersect with y=0 plane, the difference gives world direction
   const ndc1=new THREE.Vector2((sx1/innerWidth)*2-1,-(sy1/innerHeight)*2+1);
   const ndc2=new THREE.Vector2((sx2/innerWidth)*2-1,-(sy2/innerHeight)*2+1);
   const rc=new THREE.Raycaster();
@@ -493,15 +398,100 @@ function screenDirToWorld(sx1,sy1,sx2,sy2){
   const r1=rc.ray;
   rc.setFromCamera(ndc2,cam);
   const r2=rc.ray;
-  // Intersect rays with y=0 plane: r.origin + t*r.direction, solve for y=0
   const t1=-r1.origin.y/r1.direction.y;
   const t2=-r2.origin.y/r2.direction.y;
   const p1=r1.origin.clone().add(r1.direction.clone().multiplyScalar(t1));
   const p2=r2.origin.clone().add(r2.direction.clone().multiplyScalar(t2));
   const dir=p2.clone().sub(p1);
   dir.y=0;
-  dir.normalize();
   return dir;
+}
+
+function setupDrag(){
+  const cv=ren.domElement;
+
+  cv.addEventListener('pointerdown',(e)=>{
+    if(!started)return;
+    e.preventDefault();
+    const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
+    const rc=new THREE.Raycaster(); rc.setFromCamera(m,cam);
+    const hits=rc.intersectObjects([hitHelper],false);
+    if(hits.length>0 || T.dead){
+      dragS={x:e.clientX,y:e.clientY};
+      ctrl.enabled=false;
+    }
+  });
+
+  cv.addEventListener('pointermove',(e)=>{
+    if(!dragS)return;
+    e.preventDefault();
+    const dx=e.clientX-dragS.x, dy=e.clientY-dragS.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+
+    if(dragLine){scene.remove(dragLine);dragLine.geometry.dispose();dragLine.material.dispose();dragLine=null;}
+    if(dragArrow){scene.remove(dragArrow);dragArrow.dispose();dragArrow=null;}
+
+    if(dist<8)return;
+
+    const worldDelta=screenDirToWorld(dragS.x,dragS.y,e.clientX,e.clientY);
+    const launchDir=worldDelta.clone().negate();
+    if(launchDir.length()<EPS)return;
+    launchDir.normalize();
+
+    const origin=new THREE.Vector3(T.px,0.06,T.pz);
+
+    const pullLen=Math.min(dist*0.003,0.5);
+    const backEnd=origin.clone().add(worldDelta.clone().normalize().multiplyScalar(pullLen));
+    const pullGeo=new THREE.BufferGeometry();
+    const pts=[origin.x,origin.y,origin.z];
+    const segs=12;
+    for(let i=1;i<=segs;i++){
+      const t=i/segs;
+      const p=origin.clone().lerp(backEnd.clone(),t);
+      pts.push(p.x,p.y,p.z);
+    }
+    pullGeo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    dragLine=new THREE.Line(pullGeo,new THREE.LineBasicMaterial({color:0xffff00,transparent:true,opacity:0.7}));
+    scene.add(dragLine);
+
+    const arrowLen=Math.min(dist*0.004,0.6);
+    dragArrow=new THREE.ArrowHelper(launchDir,origin.clone().add(new THREE.Vector3(0,0.02,0)),arrowLen,0x00ff88,0.06,0.03);
+    scene.add(dragArrow);
+  });
+
+  cv.addEventListener('pointerup',(e)=>{
+    if(!dragS)return;
+    e.preventDefault();
+    const dx=e.clientX-dragS.x, dy=e.clientY-dragS.y, dist=Math.sqrt(dx*dx+dy*dy);
+    ctrl.enabled=true;
+    if(dragLine){scene.remove(dragLine);dragLine.geometry.dispose();dragLine.material.dispose();dragLine=null;}
+    if(dragArrow){scene.remove(dragArrow);dragArrow.dispose();dragArrow=null;}
+    dragS=null;
+
+    if(dist>15){
+      const rpm=Math.min(5000, dist*25+500);
+      const speed=Math.min(1.2, dist*0.008);
+      const worldDelta=screenDirToWorld(e.clientX-dx,e.clientY-dy,e.clientX,e.clientY);
+      const launchDir=worldDelta.clone().negate();
+      launchDir.y=0;
+      const len=launchDir.length();
+      if(len<EPS)return;
+      launchDir.divideScalar(len);
+      launch(rpm, P.tilt);
+      T.vx=launchDir.x*speed;
+      T.vz=launchDir.z*speed;
+      spawnSparks(new THREE.Vector3(T.px,0.05,T.pz),25);
+      document.getElementById('dragHint').style.opacity='0';
+      hintShown=true;
+    }
+  });
+
+  cv.addEventListener('pointercancel',()=>{
+    if(dragLine){scene.remove(dragLine);dragLine.geometry.dispose();dragLine.material.dispose();dragLine=null;}
+    if(dragArrow){scene.remove(dragArrow);dragArrow.dispose();dragArrow=null;}
+    dragS=null;
+    ctrl.enabled=true;
+  });
 }
 
 // ====== GUI ======
@@ -510,30 +500,30 @@ function buildGUI(){
   p.id='panel';
   p.style.cssText='position:absolute;top:8px;right:8px;width:230px;background:rgba(10,0,21,0.88);border:1px solid rgba(0,229,255,0.3);border-radius:10px;padding:10px;z-index:50;font-size:11px;color:#fff;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;user-select:none;';
   p.innerHTML=`
-<div style="font-size:13px;font-weight:bold;color:#00e5ff;margin-bottom:6px;text-align:center">Controls</div>
-<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;text-transform:uppercase;display:block">Spin Speed (RPM)</label>
+<div style="font-size:13px;font-weight:bold;color:#00e5ff;margin-bottom:6px;text-align:center">控制 Controls</div>
+<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;display:block">旋轉速度 Spin Speed (RPM)</label>
 <div style="display:flex;align-items:center;gap:5px"><input type="range" id="cr" min="500" max="5000" step="100" value="${P.rpm}" style="flex:1;accent-color:#00e5ff;height:28px"><span id="vr" style="min-width:35px;text-align:right;color:#00e5ff;font-size:11px">${P.rpm}</span></div></div>
-<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;text-transform:uppercase;display:block">Launch Tilt (deg)</label>
+<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;display:block">發射傾斜 Launch Tilt (deg)</label>
 <div style="display:flex;align-items:center;gap:5px"><input type="range" id="ct" min="0" max="45" step="1" value="${P.tilt}" style="flex:1;accent-color:#00e5ff;height:28px"><span id="vt" style="min-width:35px;text-align:right;color:#00e5ff;font-size:11px">${P.tilt}</span></div></div>
-<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;text-transform:uppercase;display:block">Friction</label>
+<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;display:block">摩擦力 Friction</label>
 <div style="display:flex;align-items:center;gap:5px"><input type="range" id="cf" min="0.005" max="0.15" step="0.005" value="${P.mu}" style="flex:1;accent-color:#00e5ff;height:28px"><span id="vf" style="min-width:35px;text-align:right;color:#00e5ff;font-size:11px">${P.mu}</span></div></div>
-<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;text-transform:uppercase;display:block">Mass Distribution</label>
+<div style="margin-bottom:5px"><label style="color:#aaa;font-size:9px;display:block">質量分佈 Mass Distribution</label>
 <select id="cd" style="width:100%;padding:4px;background:#1a0a2e;color:#fff;border:1px solid #00e5ff;border-radius:3px;font-size:11px;height:30px">
 <option>Balanced</option><option>Tip-heavy</option><option>Rim-heavy</option></select></div>
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px;text-transform:uppercase">Air Resistance</label><input type="checkbox" id="ca" style="accent-color:#00e5ff;width:20px;height:20px"></div>
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px;text-transform:uppercase">Force Arrows</label><input type="checkbox" id="cf2" style="accent-color:#00e5ff;width:20px;height:20px"></div>
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px;text-transform:uppercase">Trail</label><input type="checkbox" id="ctr" checked style="accent-color:#00e5ff;width:20px;height:20px"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px">空氣阻力 Air Resistance</label><input type="checkbox" id="ca" style="accent-color:#00e5ff;width:20px;height:20px"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px">力箭頭 Force Arrows</label><input type="checkbox" id="cf2" style="accent-color:#00e5ff;width:20px;height:20px"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;height:28px"><label style="color:#aaa;font-size:9px">軌跡 Trail</label><input type="checkbox" id="ctr" checked style="accent-color:#00e5ff;width:20px;height:20px"></div>
 <div style="display:flex;gap:5px;margin-top:8px">
-<button id="bl" style="flex:1;padding:10px;background:linear-gradient(135deg,#00e5ff,#7c4dff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:bold;font-size:13px;-webkit-tap-highlight-color:transparent">LAUNCH</button>
-    <button id="br" style="flex:0.5;padding:10px;background:#333;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent">Reset</button></div>
+<button id="bl" style="flex:1;padding:10px;background:linear-gradient(135deg,#00e5ff,#7c4dff);border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:bold;font-size:13px;-webkit-tap-highlight-color:transparent">發射 LAUNCH</button>
+    <button id="br" style="flex:0.5;padding:10px;background:#333;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent">重設 Reset</button></div>
 <div style="display:flex;gap:3px;margin-top:5px">
-<button id="bp" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:3px;color:#fff;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">Pause</button>
+<button id="bp" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:3px;color:#fff;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">暫停 Pause</button>
     <button id="bh" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:3px;color:#fff;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">0.5x</button>
     <button id="bn" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:3px;color:#fff;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">1x</button>
     <button id="bd" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:3px;color:#fff;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">2x</button></div>
-  <button id="be" style="width:100%;margin-top:5px;padding:6px;background:#1a3a2a;border:1px solid #33aa55;border-radius:3px;color:#33ff55;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">Export CSV</button>
+  <button id="be" style="width:100%;margin-top:5px;padding:6px;background:#1a3a2a;border:1px solid #33aa55;border-radius:3px;color:#33ff55;cursor:pointer;font-size:9px;-webkit-tap-highlight-color:transparent">匯出CSV Export CSV</button>
 <div style="margin-top:6px;text-align:center;font-size:9px;color:#00e5ff;font-weight:bold">Created by Cloof Siu</div>
-<div style="margin-top:2px;text-align:center;font-size:8px;color:#666">for STEM Workshops</div>`;
+<div style="margin-top:2px;text-align:center;font-size:8px;color:#666">STEM 工作坊 Workshops</div>`;
   document.body.appendChild(p);
 
   document.getElementById('cr').oninput=e=>{P.rpm=+e.target.value;document.getElementById('vr').textContent=P.rpm;};
@@ -546,7 +536,6 @@ function buildGUI(){
   document.getElementById('bl').onclick=()=>{
     if(started){
       launch(P.rpm,P.tilt);
-      // Give a solid push so top starts orbiting
       const dir=Math.random()*Math.PI*2;
       T.vx=Math.cos(dir)*0.1;
       T.vz=Math.sin(dir)*0.1;
@@ -558,13 +547,14 @@ function buildGUI(){
     T.vx=0;T.vz=0;T.px=0;T.pz=0;T.trail=[];T.time=0;T.spinTime=0;
     log=[];elapsed=0;sparks.forEach(s=>{scene.remove(s);s.geometry.dispose();s.material.dispose();});sparks=[];
     updTrail();document.getElementById('badge').style.opacity='0';
+    if(!hintShown)document.getElementById('dragHint').style.opacity='1';
   };
-  document.getElementById('bp').onclick=()=>{paused=!paused;document.getElementById('bp').textContent=paused?'Play':'Pause';};
+  document.getElementById('bp').onclick=()=>{paused=!paused;document.getElementById('bp').textContent=paused?'播放 Play':'暫停 Pause';};
   document.getElementById('bh').onclick=()=>{speed=0.5;};
   document.getElementById('bn').onclick=()=>{speed=1.0;};
   document.getElementById('bd').onclick=()=>{speed=2.0;};
   document.getElementById('be').onclick=()=>{
-    if(!log.length){alert('Launch first!');return;}
+    if(!log.length){alert('請先發射！ Launch first!');return;}
     let c='Time,RPM,Tilt,L,X,Z\n';
     for(const e of log)c+=`${e.t.toFixed(3)},${e.r.toFixed(1)},${(e.tilt*180/Math.PI).toFixed(2)},${(e.L*1e3).toFixed(4)},${e.x.toFixed(4)},${e.z.toFixed(4)}\n`;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));a.download='beyblade.csv';a.click();
@@ -575,9 +565,9 @@ function buildGUI(){
 function hud(){
   document.getElementById('v-rpm').textContent=T.spinning||T.dead?T.rpm.toFixed(0)+' RPM':'--';
   document.getElementById('v-tilt').textContent=(T.theta*180/Math.PI).toFixed(1)+'°';
-  document.getElementById('v-L').textContent=T.spinning?(T.I1*T.omega*1e3).toFixed(2)+' ×10⁻³':'--';
+  document.getElementById('v-L').textContent=T.spinning?(T.I1*T.omega*1e3).toFixed(2)+' x10-3':'--';
   if(T.spinning){const t=estTime();const m=Math.floor(t/60),s=(t%60).toFixed(1);document.getElementById('v-time').textContent=m>0?m+'m '+s+'s':s+'s';}
-  else if(T.dead)document.getElementById('v-time').textContent='Stopped';
+  else if(T.dead)document.getElementById('v-time').textContent='已停止 Stopped';
   else document.getElementById('v-time').textContent='--';
   document.getElementById('v-elapsed').textContent=elapsed.toFixed(1)+' s';
 }
@@ -585,11 +575,11 @@ function hud(){
 function badge(){
   const b=document.getElementById('badge');
   if(T.spinning){
-    if(T.rpm>1500){b.textContent='SPINNING';b.style.background='rgba(0,229,255,0.25)';b.style.color='#00e5ff';}
-    else if(T.rpm>500){b.textContent='SLOWING DOWN';b.style.background='rgba(255,193,7,0.25)';b.style.color='#ffc107';}
-    else{b.textContent='WOBBLING';b.style.background='rgba(255,82,82,0.25)';b.style.color='#ff5252';}
+    if(T.rpm>1500){b.textContent='旋轉中 SPINNING';b.style.background='rgba(0,229,255,0.25)';b.style.color='#00e5ff';}
+    else if(T.rpm>500){b.textContent='減速中 SLOWING DOWN';b.style.background='rgba(255,193,7,0.25)';b.style.color='#ffc107';}
+    else{b.textContent='搖擺 WOBBLING';b.style.background='rgba(255,82,82,0.25)';b.style.color='#ff5252';}
     b.style.opacity='0.8';
-  }else if(T.dead){b.textContent='STOPPED -- Press Launch';b.style.background='rgba(255,82,82,0.35)';b.style.color='#ff5252';b.style.opacity='1';}
+  }else if(T.dead){b.textContent='已停止——向後拉發射 STOPPED -- Drag back to launch';b.style.background='rgba(255,82,82,0.35)';b.style.color='#ff5252';b.style.opacity='1';}
   else b.style.opacity='0';
 }
 
@@ -598,7 +588,6 @@ function loop(){
   requestAnimationFrame(loop);
   const rawDt=clk.getDelta();
 
-  // Always sync mesh+glow
   syncMesh();
   if(glow){
     glow.position.set(T.px,0.003,T.pz);
@@ -633,10 +622,11 @@ document.getElementById('go').addEventListener('click',()=>{
   setTimeout(()=>{document.getElementById('overlay').style.display='none';},600);
   setTimeout(()=>{
     launch(P.rpm,P.tilt);
-    // Give initial push so the top starts orbiting
     const dir=Math.random()*Math.PI*2;
     T.vx=Math.cos(dir)*0.12;
     T.vz=Math.sin(dir)*0.12;
+    document.getElementById('dragHint').style.opacity='1';
+    setTimeout(()=>{document.getElementById('dragHint').style.opacity='0';},4000);
   },400);
 });
 
