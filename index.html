@@ -385,24 +385,21 @@ let dragS=null;
 let dragLine=null;
 let dragArrow=null;
 let hintShown=false;
+const GROUND_PLANE=new THREE.Plane(new THREE.Vector3(0,1,0),0);
 
-function topScreenPos(){
-  const v=new THREE.Vector3(T.px,0.05,T.pz).project(cam);
-  return{x:(v.x+1)/2*innerWidth,y:(-v.y+1)/2*innerHeight};
+function raycastGround(sx,sy){
+  const ndc=new THREE.Vector2((sx/innerWidth)*2-1,-(sy/innerHeight)*2+1);
+  const rc=new THREE.Raycaster();
+  rc.setFromCamera(ndc,cam);
+  const pt=new THREE.Vector3();
+  if(!rc.ray.intersectPlane(GROUND_PLANE,pt))return null;
+  return pt;
 }
 
 function screenDirToWorld(sx1,sy1,sx2,sy2){
-  const ndc1=new THREE.Vector2((sx1/innerWidth)*2-1,-(sy1/innerHeight)*2+1);
-  const ndc2=new THREE.Vector2((sx2/innerWidth)*2-1,-(sy2/innerHeight)*2+1);
-  const rc=new THREE.Raycaster();
-  rc.setFromCamera(ndc1,cam);
-  const r1=rc.ray;
-  rc.setFromCamera(ndc2,cam);
-  const r2=rc.ray;
-  const t1=-r1.origin.y/r1.direction.y;
-  const t2=-r2.origin.y/r2.direction.y;
-  const p1=r1.origin.clone().add(r1.direction.clone().multiplyScalar(t1));
-  const p2=r2.origin.clone().add(r2.direction.clone().multiplyScalar(t2));
+  const p1=raycastGround(sx1,sy1);
+  const p2=raycastGround(sx2,sy2);
+  if(!p1||!p2)return new THREE.Vector3();
   const dir=p2.clone().sub(p1);
   dir.y=0;
   return dir;
@@ -413,11 +410,11 @@ function setupDrag(){
 
   cv.addEventListener('pointerdown',(e)=>{
     if(!started)return;
-    const ts=topScreenPos();
-    const dx=e.clientX-ts.x, dy=e.clientY-ts.y;
-    const screenDist=Math.sqrt(dx*dx+dy*dy);
-    const nearTop=screenDist<Math.min(innerWidth,innerHeight)*0.2;
-    if(nearTop || T.dead || !T.spinning){
+    const pt=raycastGround(e.clientX,e.clientY);
+    if(!pt)return;
+    const dx=pt.x-T.px, dz=pt.z-T.pz;
+    const distToTop=Math.sqrt(dx*dx+dz*dz);
+    if(distToTop<0.5 || T.dead || !T.spinning){
       dragS={x:e.clientX,y:e.clientY};
       ctrl.enabled=false;
     }
@@ -447,7 +444,7 @@ function setupDrag(){
     const segs=12;
     for(let i=1;i<=segs;i++){
       const t=i/segs;
-      const p=origin.clone().lerp(backEnd.clone(),t);
+      const p=origin.clone().lerp(backEnd,t);
       pts.push(p.x,p.y,p.z);
     }
     pullGeo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
@@ -476,7 +473,7 @@ function setupDrag(){
       const len=launchDir.length();
       if(len<EPS)return;
       launchDir.divideScalar(len);
-      launch(rpm, P.tilt);
+      launch(rpm, P.tilt, true);
       T.vx=launchDir.x*speed;
       T.vz=launchDir.z*speed;
       spawnSparks(new THREE.Vector3(T.px,0.05,T.pz),25);
