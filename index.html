@@ -72,7 +72,8 @@ const G = 9.82, ARENA_R = 1.0, EPS = 1e-6;
 
 let scene, cam, ren, ctrl, clk;
 let paused = false, speed = 1.0, elapsed = 0, started = false;
-let mesh, hitHelper, glow, trail, sparks = [], airMesh;
+let spinStartElapsed = 0, spinDuration = 0;
+let mesh, floorMesh, glow, trail, sparks = [], airMesh;
 let arrG, arrT, arrA;
 let log = [], logT = 0;
 
@@ -132,6 +133,8 @@ function launch(rpm, tiltDeg, keepPos) {
   T.vx = 0; T.vz = 0;
   T.trail = [];
   T.launchTime = T.time;
+  spinStartElapsed = elapsed;
+  spinDuration = 0;
 }
 
 function physics(dt) {
@@ -151,7 +154,7 @@ function physics(dt) {
   T.omega *= Math.exp(-totalRate * dt);
   if (T.theta > 1.0) T.omega *= Math.exp(-2.0 * dt);
   if (T.theta > 1.3) T.omega *= Math.exp(-6.0 * dt);
-  if (T.omega < 3) { T.omega = 0; T.rpm = 0; T.spinning = false; T.dead = true; return; }
+  if (T.omega < 3) { T.omega = 0; T.rpm = 0; T.spinning = false; T.dead = true; spinDuration = elapsed - spinStartElapsed; return; }
   T.rpm = T.omega * 60 / (2 * Math.PI);
 
   const phiDot = M / (I1 * T.omega);
@@ -211,7 +214,6 @@ function syncMesh() {
   const qS = new THREE.Quaternion().setFromAxisAngle(sA, T.psi);
   mesh.quaternion.copy(qP).multiply(qT).multiply(qS);
   mesh.position.set(T.px, 0.086 * Math.cos(T.theta), T.pz);
-  if (hitHelper) hitHelper.position.set(T.px, 0.05, T.pz);
 }
 
 function spawnSparks(pos, n) {
@@ -266,12 +268,6 @@ function init() {
 
   buildArena();
   mesh = buildTop(0x00e5ff);
-  hitHelper = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15, 0.15, 0.3, 8),
-    new THREE.MeshBasicMaterial({visible: false})
-  );
-  hitHelper.position.set(0, 0.05, 0);
-  scene.add(hitHelper);
   buildGlow();
   buildTrail();
   buildArrows();
@@ -289,6 +285,7 @@ function init() {
 function buildArena() {
   const f = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R,64), new THREE.MeshStandardMaterial({color:0x18182e,metalness:0.85,roughness:0.12}));
   f.rotation.x=-Math.PI/2; f.position.y=-0.001; f.receiveShadow=true; scene.add(f);
+  floorMesh = f;
   for (let i=1;i<=3;i++) {
     const r=ARENA_R*i*0.25;
     const rn=new THREE.Mesh(new THREE.RingGeometry(r-0.004,r+0.004,64),new THREE.MeshBasicMaterial({color:0x2a2a4a,side:THREE.DoubleSide}));
@@ -407,16 +404,23 @@ function screenDirToWorld(sx1,sy1,sx2,sy2){
   return dir;
 }
 
+function hitFloor(cx,cy){
+  const ndc=new THREE.Vector2((cx/innerWidth)*2-1,-(cy/innerHeight)*2+1);
+  const rc=new THREE.Raycaster(); rc.setFromCamera(ndc,cam);
+  const hits=rc.intersectObject(floorMesh,false);
+  return hits.length>0?hits[0].point:null;
+}
+
 function setupDrag(){
   const cv=ren.domElement;
 
   cv.addEventListener('pointerdown',(e)=>{
     if(!started)return;
-    e.preventDefault();
-    const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
-    const rc=new THREE.Raycaster(); rc.setFromCamera(m,cam);
-    const hits=rc.intersectObjects([hitHelper],false);
-    if(hits.length>0 || T.dead){
+    const fp=hitFloor(e.clientX,e.clientY);
+    if(!fp)return;
+    const dx=fp.x-T.px, dz=fp.z-T.pz;
+    const distToTop=Math.sqrt(dx*dx+dz*dz);
+    if(distToTop<0.35 || T.dead){
       dragS={x:e.clientX,y:e.clientY};
       ctrl.enabled=false;
     }
@@ -424,7 +428,6 @@ function setupDrag(){
 
   cv.addEventListener('pointermove',(e)=>{
     if(!dragS)return;
-    e.preventDefault();
     const dx=e.clientX-dragS.x, dy=e.clientY-dragS.y;
     const dist=Math.sqrt(dx*dx+dy*dy);
 
@@ -461,7 +464,6 @@ function setupDrag(){
 
   cv.addEventListener('pointerup',(e)=>{
     if(!dragS)return;
-    e.preventDefault();
     const dx=e.clientX-dragS.x, dy=e.clientY-dragS.y, dist=Math.sqrt(dx*dx+dy*dy);
     ctrl.enabled=true;
     if(dragLine){scene.remove(dragLine);dragLine.geometry.dispose();dragLine.material.dispose();dragLine=null;}
@@ -545,6 +547,7 @@ function buildGUI(){
   document.getElementById('br').onclick=()=>{
     T.spinning=false;T.dead=false;T.omega=0;T.rpm=0;T.theta=0.02;T.phi=0;T.psi=0;
     T.vx=0;T.vz=0;T.px=0;T.pz=0;T.trail=[];T.time=0;T.spinTime=0;
+    spinDuration=0;
     log=[];elapsed=0;sparks.forEach(s=>{scene.remove(s);s.geometry.dispose();s.material.dispose();});sparks=[];
     updTrail();document.getElementById('badge').style.opacity='0';
     if(!hintShown)document.getElementById('dragHint').style.opacity='1';
@@ -566,8 +569,13 @@ function hud(){
   document.getElementById('v-rpm').textContent=T.spinning||T.dead?T.rpm.toFixed(0)+' RPM':'--';
   document.getElementById('v-tilt').textContent=(T.theta*180/Math.PI).toFixed(1)+'°';
   document.getElementById('v-L').textContent=T.spinning?(T.I1*T.omega*1e3).toFixed(2)+' x10-3':'--';
-  if(T.spinning){const t=estTime();const m=Math.floor(t/60),s=(t%60).toFixed(1);document.getElementById('v-time').textContent=m>0?m+'m '+s+'s':s+'s';}
-  else if(T.dead)document.getElementById('v-time').textContent='已停止 Stopped';
+  if(T.spinning){
+    const t=estTime();const m=Math.floor(t/60),s=(t%60).toFixed(1);
+    document.getElementById('v-time').textContent=m>0?m+'m '+s+'s':s+'s';
+  }else if(T.dead){
+    const sd=spinDuration;const m=Math.floor(sd/60),s=(sd%60).toFixed(1);
+    document.getElementById('v-time').textContent=(m>0?m+'m ':'')+s+'s';
+  }
   else document.getElementById('v-time').textContent='--';
   document.getElementById('v-elapsed').textContent=elapsed.toFixed(1)+' s';
 }
